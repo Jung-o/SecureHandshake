@@ -53,14 +53,28 @@ public class SHPServer {
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 
-        // Phase 1 Message 1: Receive userID
-        String userId = reader.readLine();
-        System.out.println("Received userID: " + userId);
+        ObjectInputStream objectInputStream = new ObjectInputStream(input);
 
-        if (!userDatabase.containsKey(userId)) {
-            System.out.println("User not found.");
-            return;
+        try {
+            Message receivedMessage = (Message) objectInputStream.readObject();
+            if (receivedMessage instanceof Message1) {
+                Message1 message1 = (Message1) receivedMessage;
+                System.out.println("Received userID: " + message1.getUserId());
+                if (!userDatabase.containsKey(message1.getUserId())) {
+                    System.out.println("User not found.");
+                    return;
+                }
+            } else {
+                System.out.println("Unexpected message type received.");
+            }
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
+
+        // Phase 1 Message 1: Receive userID
+//        String userId = reader.readLine();
+//        System.out.println("Received userID: " + userId);
+
 
         // Send Nonces (Message 2)
         byte[] nonce1 = generateNonce();
@@ -68,11 +82,15 @@ public class SHPServer {
         byte[] nonce3 = generateNonce();
 
         System.out.println("Sent Nonces: " + Arrays.asList(nonce1, nonce2, nonce3).stream().map(Base64.getEncoder()::encodeToString).collect(Collectors.joining(", ")));
+        Message2 message2 = new Message2((byte) 1, (byte) 0, nonce1, nonce2, nonce3);
 
-        output.write((Base64.getEncoder().encodeToString(nonce1) + "\n").getBytes());
-        output.write((Base64.getEncoder().encodeToString(nonce2) + "\n").getBytes());
-        output.write((Base64.getEncoder().encodeToString(nonce3) + "\n").getBytes());
-        output.flush();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(output);
+        objectOutputStream.writeObject(message2);
+        objectOutputStream.flush();
+//        output.write((Base64.getEncoder().encodeToString(nonce1) + "\n").getBytes());
+//        output.write((Base64.getEncoder().encodeToString(nonce2) + "\n").getBytes());
+//        output.write((Base64.getEncoder().encodeToString(nonce3) + "\n").getBytes());
+//        output.flush();
 
         // Further message exchanges would go here (Messages 3, 4, 5)
         System.out.println("Session complete.");
