@@ -1,8 +1,6 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -80,6 +78,8 @@ public class SHPServer {
                 .map(Base64.getEncoder()::encodeToString)
                 .collect(Collectors.joining(", ")));
 
+        Thread.sleep(500);
+
         byte[] msgData3 = receiveMessage(input);
         UserRecord userData = userDatabase.get(userId);
         int counter=2048;
@@ -93,6 +93,12 @@ public class SHPServer {
             socket.close();
             return;
         }
+        if (!msg3.verifyMessage()){
+            System.out.println("Failed to verify message HMAC or Signature, discarding message!");
+            socket.close();
+            return;
+        }
+        msg3.parseDecryptedData();
 
         System.out.println("Received msg3: " + msg3);
 

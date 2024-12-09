@@ -1,48 +1,63 @@
-import javax.crypto.*;
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.security.*;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.security.Signature;
 import java.util.Arrays;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public class SHPMessageType3 extends SHPMessage {
     private String hashedPassword;
-    private byte[] salt;
-    private int counter;
+    private ECCKeyInfo eccKeyInfo;
     private String request;
-    private String userID;
-    private byte[] nonce3;
+    private String userId;
+    private byte[] incrementedNonce3;
     private byte[] nonce4;
     private int udpPort;
-    private ECCKeyInfo eccKeyInfo;
+    private byte[] salt;
+    private int counter;
 
-    static {
-        Security.addProvider(new BouncyCastleProvider());
-    }
+    private byte[] encryptedData;
+    private byte[] signature;
+    private byte[] hmac;
+
+    private byte[] decryptedData;
+
 
     public SHPMessageType3() {
         this.messageType = 0x03; // Type 3
     }
 
-    public SHPMessageType3(String hashedPassword, byte[] salt, int counter, String request, String userID, byte[] nonce3, byte[] nonce4, int udpPort, ECCKeyInfo eccKeyInfo) {
+
+    // Client side constructor
+    public SHPMessageType3(String userID, String request, byte[] nonce3, byte[] nonce4, int udpPort, byte[] salt, int counter, String hashedPassword, ECCKeyInfo eccKeyInfo) throws Exception {
         this();
-        this.hashedPassword = hashedPassword;
-        this.salt = salt;
-        this.counter = counter;
+        this.userId = userID;
         this.request = request;
-        this.userID = userID;
-        this.nonce3 = nonce3;
+        this.incrementedNonce3 = incrementNonce(nonce3);
         this.nonce4 = nonce4;
         this.udpPort = udpPort;
+        this.salt = salt;
+        this.counter = counter;
+        this.hashedPassword = hashedPassword;
         this.eccKeyInfo = eccKeyInfo;
+
+        byte[] plaintext = serializePlaintext();
+        this.encryptedData = passwordBasedEncryption(plaintext);
+        this.signature = generateDataSignature(plaintext);
+        byte[] contentToHMAC = buildHmacInput();
+        this.hmac = computeHMAC(contentToHMAC);
+
     }
 
-    public SHPMessageType3(String hashedPassword, byte[] salt, int counter, ECCKeyInfo eccKeyInfo) {
+    // Server side constructor
+    public SHPMessageType3(String hashedPassword, byte[] salt, int counter, ECCKeyInfo eccKeyInfo){
         this();
         this.hashedPassword = hashedPassword;
         this.salt = salt;
@@ -50,96 +65,34 @@ public class SHPMessageType3 extends SHPMessage {
         this.eccKeyInfo = eccKeyInfo;
     }
 
-    public byte[] toBytes(byte protocolVersion, byte release) throws Exception {
+    private byte[] serializePlaintext() throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        baos.write(createHeader(protocolVersion, release, messageType));
 
-        byte[] messageInBytes = creteBytesMessageData();
-        byte[] pbePayload = passwordBasedEncryption(messageInBytes);
-        baos.write(intToBytes(pbePayload.length));
-        baos.write(pbePayload);
+        // request (length-prefixed string)
+        byte[] reqBytes = request.getBytes(StandardCharsets.UTF_8);
+        baos.write((reqBytes.length >>> 8) & 0xFF);
+        baos.write(reqBytes.length & 0xFF);
+        baos.write(reqBytes);
 
-        byte[] sign = generateDataSignature(messageInBytes);
-        baos.write(intToBytes(sign.length));
-        baos.write(sign);
+        // userID (length-prefixed string)
+        byte[] userBytes = userId.getBytes(StandardCharsets.UTF_8);
+        baos.write((userBytes.length >>> 8) & 0xFF);
+        baos.write(userBytes.length & 0xFF);
+        baos.write(userBytes);
 
-        byte[] messageSoFar = baos.toByteArray();
-        byte[] hmac = computeHMAC(messageSoFar);
-        baos.write(intToBytes(hmac.length));
-        baos.write(hmac);
+        // nonce3+1 (16 bytes)
+        baos.write(incrementedNonce3);
+
+        // nonce4 (16 bytes)
+        baos.write(nonce4);
+
+        // udp_port (4 bytes)
+        baos.write((udpPort >>> 24) & 0xFF);
+        baos.write((udpPort >>> 16) & 0xFF);
+        baos.write((udpPort >>> 8) & 0xFF);
+        baos.write(udpPort & 0xFF);
 
         return baos.toByteArray();
-    }
-
-    @Override
-    public void fromBytes(byte[] data) {
-        try {
-            int offset = parseHeader(data);
-
-            int encryptedDataLength = ByteBuffer.wrap(Arrays.copyOfRange(data, offset, offset + 4)).getInt();
-            offset += 4;
-
-            byte[] encryptedData = Arrays.copyOfRange(data, offset, offset + encryptedDataLength);
-            offset += encryptedDataLength;
-
-            int signatureLength = ByteBuffer.wrap(Arrays.copyOfRange(data, offset, offset + 4)).getInt();
-            offset += 4;
-
-            byte[] signature = Arrays.copyOfRange(data, offset, offset + signatureLength);
-            offset += signatureLength;
-
-            int hmacLength = ByteBuffer.wrap(Arrays.copyOfRange(data, offset, offset + 4)).getInt();
-            offset += 4;
-            byte[] receivedHMAC = Arrays.copyOfRange(data, offset, offset + hmacLength);
-            byte[] messageForHMAC = Arrays.copyOfRange(data, 0, data.length - hmacLength - 4);
-            if (!verifyHMAC(messageForHMAC, receivedHMAC)) {
-                throw new RuntimeException("HMAC verification failed.");
-            }
-
-            byte[] decryptedData = passwordBasedDecryption(encryptedData);
-            if (!verifySignature(decryptedData, signature, eccKeyInfo.getPublicKey())) {
-                throw new RuntimeException("Signature verification failed.");
-            }
-            mapDecryptedDataToClassFields(decryptedData);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private boolean verifyHMAC(byte[] message, byte[] receivedHMAC) throws Exception {
-        byte[] computedHMAC = computeHMAC(message);
-        return Arrays.equals(computedHMAC, receivedHMAC);
-    }
-
-    private byte[] computeHMAC(byte[] data) throws Exception {
-        byte[] key = hashedPassword.getBytes();
-        SecretKeySpec keySpec = new SecretKeySpec(key, "HmacSHA256");
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(keySpec);
-        return mac.doFinal(data);
-    }
-
-    private boolean verifySignature(byte[] message, byte[] signature, PublicKey publicKey) throws Exception {
-        Signature verifier = Signature.getInstance("SHA256withECDSA", "BC");
-        verifier.initVerify(eccKeyInfo.getPublicKey());
-        verifier.update(message);
-        if (verifier.verify(signature)) {
-            System.out.println("Signature verification succeeded.");
-            return true;
-        } else {
-            System.out.println("Signature verification failed.");
-            return false;
-        }
-    }
-
-    public byte[] passwordBasedEncryption(byte[] input) throws Exception {
-        char[] password = hashedPassword.toCharArray();
-        PBEKeySpec pbeSpec = new PBEKeySpec(password);
-        SecretKeyFactory keyFact = SecretKeyFactory.getInstance("PBEWITHSHA256AND192BITAES-CBC-BC","BC");
-        Key sKey= keyFact.generateSecret(pbeSpec);
-        Cipher cEnc = Cipher.getInstance("PBEWITHSHA256AND192BITAES-CBC-BC","BC");
-        cEnc.init(Cipher.ENCRYPT_MODE, sKey, new PBEParameterSpec(salt, counter));
-        return cEnc.doFinal(input);
     }
 
     private byte[] incrementNonce(byte[] nonce3) {
@@ -152,44 +105,24 @@ public class SHPMessageType3 extends SHPMessage {
         return buffer.array();
     }
 
-    public byte[] creteBytesMessageData() throws UnsupportedEncodingException {
-        byte[] nonce3Incremented = incrementNonce(nonce3);
-
-        byte requestByte;
-        if ("files".equalsIgnoreCase(request)) {
-            requestByte = 1;
-        } else if ("movie".equalsIgnoreCase(request)) {
-            requestByte = 2;
-        } else {
-            throw new IllegalArgumentException("Invalid request type: " + request);
-        }
-        byte[] userIDBytes = userID.getBytes("UTF-8");
-        userIDBytes = Arrays.copyOf(userIDBytes, 320);
-        ByteBuffer udpPortBuffer = ByteBuffer.allocate(4).putInt(udpPort);
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            baos.write(requestByte);
-            baos.write(userIDBytes);
-            baos.write(nonce3Incremented);
-            baos.write(nonce4);
-            baos.write(udpPortBuffer.array());
-        } catch (IOException e) {
-            throw new RuntimeException("Error constructing input data", e);
-        }
-
-        return baos.toByteArray();
+    public byte[] passwordBasedEncryption(byte[] input) throws Exception {
+        return doPBRoutine(Cipher.ENCRYPT_MODE, input);
     }
 
     public byte[] passwordBasedDecryption(byte[] encryptedData) throws Exception {
+        return doPBRoutine(Cipher.DECRYPT_MODE, encryptedData);
+    }
+
+    public byte[] doPBRoutine(int opmode, byte[] data) throws Exception{
         char[] password = hashedPassword.toCharArray();
         PBEKeySpec pbeSpec = new PBEKeySpec(password);
         SecretKeyFactory keyFact = SecretKeyFactory.getInstance("PBEWITHSHA256AND192BITAES-CBC-BC", "BC");
         Key sKey = keyFact.generateSecret(pbeSpec);
 
         Cipher cDec = Cipher.getInstance("PBEWITHSHA256AND192BITAES-CBC-BC", "BC");
-        cDec.init(Cipher.DECRYPT_MODE, sKey, new PBEParameterSpec(salt, counter));
-        return cDec.doFinal(encryptedData);
+        cDec.init(opmode, sKey, new PBEParameterSpec(salt, counter));
+        return cDec.doFinal(data);
+
     }
 
     public byte[] generateDataSignature(byte[] data) throws Exception {
@@ -199,31 +132,130 @@ public class SHPMessageType3 extends SHPMessage {
         return signature.sign();
     }
 
-    private void mapDecryptedDataToClassFields(byte[] decryptedData) throws UnsupportedEncodingException {
-        ByteBuffer buffer = ByteBuffer.wrap(decryptedData);
-        byte requestByte = buffer.get();
-        switch (requestByte) {
-            case 1:
-                this.request = "files";
-                break;
-            case 2:
-                this.request = "movie";
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid request byte: " + requestByte);
+    private byte[] buildHmacInput() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        // encryptedData length + encryptedData
+        baos.write((encryptedData.length >>> 8) & 0xFF);
+        baos.write(encryptedData.length & 0xFF);
+        baos.write(encryptedData);
+
+        // signature length + signature
+        baos.write((signature.length >>> 8) & 0xFF);
+        baos.write(signature.length & 0xFF);
+        baos.write(signature);
+
+        return baos.toByteArray();
+    }
+
+    private byte[] computeHMAC(byte[] data) throws Exception {
+        byte[] key = hashedPassword.getBytes();
+        SecretKeySpec keySpec = new SecretKeySpec(key, "HmacSHA256");
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(keySpec);
+        return mac.doFinal(data);
+    }
+
+    public byte[] toBytes(byte protocolVersion, byte release) throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write(createHeader(protocolVersion, release, messageType));
+
+        // Write encryptedData
+        baos.write((encryptedData.length >>> 8) & 0xFF);
+        baos.write(encryptedData.length & 0xFF);
+        baos.write(encryptedData);
+
+        // Write signature
+        baos.write((signature.length >>> 8) & 0xFF);
+        baos.write(signature.length & 0xFF);
+        baos.write(signature);
+
+        // Write HMAC (assume 32 bytes for HMAC-SHA256)
+        baos.write(hmac);
+
+        return baos.toByteArray();
+    }
+
+    @Override
+    public void fromBytes(byte[] data) {
+        int offset = parseHeader(data);
+
+        // Read encryptedData
+        int encLen = ((data[offset] & 0xFF) << 8) | (data[offset+1] & 0xFF);
+        offset += 2;
+        encryptedData = Arrays.copyOfRange(data, offset, offset+encLen);
+        offset += encLen;
+
+        // Read signature
+        int sigLen = ((data[offset] & 0xFF) << 8) | (data[offset+1] & 0xFF);
+        offset += 2;
+        signature = Arrays.copyOfRange(data, offset, offset+sigLen);
+        offset += sigLen;
+
+        // Read HMAC (assuming fixed length, e.g., 32 bytes)
+        hmac = Arrays.copyOfRange(data, offset, offset+32);
+        offset += 32;
+    }
+
+    public boolean verifyMessage() throws Exception {
+        boolean hmacVerified = verifyHMAC();
+        if (!hmacVerified){
+            return false;
         }
 
-        byte[] userIDBytes = new byte[320];
-        buffer.get(userIDBytes);
-        this.userID = new String(userIDBytes, "UTF-8").trim();
+        this.decryptedData = passwordBasedDecryption(encryptedData);
+        boolean signatureVerified = verifySignature();
 
-        this.nonce3 = new byte[16];
-        buffer.get(this.nonce3);
+        if (!signatureVerified){
+            return false;
+        }
+        return true;
+    }
 
-        this.nonce4 = new byte[16];
-        buffer.get(this.nonce4);
+    private boolean verifyHMAC() throws Exception {
+        byte[] contentToHMAC = buildHmacInput();
+        byte[] computedHmac = computeHMAC(contentToHMAC);
+        return Arrays.equals(computedHmac, hmac);
+    }
 
-        this.udpPort = buffer.getInt();
+    private boolean verifySignature() throws Exception {
+        Signature verifier = Signature.getInstance("SHA256withECDSA", "BC");
+        verifier.initVerify(eccKeyInfo.getPublicKey());
+        verifier.update(decryptedData);
+        return verifier.verify(signature);
+    }
+
+    public void parseDecryptedData() {
+        int offset = 0;
+
+        // 1. request
+        int reqLen = ((decryptedData[offset] & 0xFF) << 8) | (decryptedData[offset+1] & 0xFF);
+        offset += 2;
+        byte[] reqBytes = Arrays.copyOfRange(decryptedData, offset, offset + reqLen);
+        offset += reqLen;
+        this.request = new String(reqBytes, StandardCharsets.UTF_8);
+
+        // 2. userID
+        int userLen = ((decryptedData[offset] & 0xFF) << 8) | (decryptedData[offset+1] & 0xFF);
+        offset += 2;
+        byte[] userBytes = Arrays.copyOfRange(decryptedData, offset, offset + userLen);
+        offset += userLen;
+        this.userId = new String(userBytes, StandardCharsets.UTF_8);
+
+        // 3. nonce3+1 (16 bytes)
+        this.incrementedNonce3 = Arrays.copyOfRange(decryptedData, offset, offset + 16);
+        offset += 16;
+
+        // 4. nonce4 (16 bytes)
+        this.nonce4 = Arrays.copyOfRange(decryptedData, offset, offset + 16);
+        offset += 16;
+
+        // 5. udpPort (4 bytes)
+        this.udpPort = ((decryptedData[offset] & 0xFF) << 24) |
+                ((decryptedData[offset+1] & 0xFF) << 16) |
+                ((decryptedData[offset+2] & 0xFF) << 8) |
+                (decryptedData[offset+3] & 0xFF);
+        offset += 4;
     }
 
     @Override
@@ -233,14 +265,22 @@ public class SHPMessageType3 extends SHPMessage {
                 ", salt='" + new String(salt) + '\'' +
                 ", counter=" + counter +
                 ", request='" + request + '\'' +
-                ", userID='" + userID + '\'' +
-                ", nonce3='" + Arrays.toString(nonce3) + '\'' +
+                ", userID='" + userId + '\'' +
+                ", incrementedNonce3='" + Arrays.toString(incrementedNonce3) + '\'' +
                 ", nonce4='" + Arrays.toString(nonce4) + '\'' +
                 ", udpPort=" + udpPort +
                 '}';
     }
 
-    private byte[] intToBytes(int value) {
-        return ByteBuffer.allocate(4).putInt(value).array();
-    }
+    public String getUserID() { return userId; }
+    public String getRequestField() { return request; }
+    public byte[] getIncrementedNonce3() { return incrementedNonce3; }
+    public byte[] getNonce4() { return nonce4; }
+    public int getUdpPort() { return udpPort; }
+
+    public byte[] getEncryptedData() { return encryptedData; }
+    public byte[] getSignature() { return signature; }
+    public byte[] getHmac() { return hmac; }
+    public byte[] getSalt() { return salt; }
+    public int getCounter() { return counter; }
 }
