@@ -113,16 +113,6 @@ public class SHPServer {
         socket.close();
     }
 
-    private byte[] incrementNonce(byte[] nonce) {
-        ByteBuffer buffer = ByteBuffer.wrap(nonce);
-        buffer.position(nonce.length - 4);
-        int lastPart = buffer.getInt();
-        lastPart += 1;
-        buffer.position(nonce.length - 4);
-        buffer.putInt(lastPart);
-        return buffer.array();
-    }
-
     private Map<String, UserRecord> loadUserDatabase(String fileName) throws Exception {
         Map<String, UserRecord> userDatabase = new HashMap<>();
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
