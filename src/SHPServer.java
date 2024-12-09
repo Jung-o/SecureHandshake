@@ -175,24 +175,21 @@ public class SHPServer {
     }
 
     public static void sendMessage(OutputStream out, byte[] data) throws IOException {
-        out.write((data.length >>> 24) & 0xFF);
-        out.write((data.length >>> 16) & 0xFF);
-        out.write((data.length >>> 8) & 0xFF);
-        out.write(data.length & 0xFF);
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.putInt(data.length);
+        byte[] lengthBytes = buffer.array();
+        out.write(lengthBytes);
         out.write(data);
         out.flush();
     }
 
     public static byte[] receiveMessage(InputStream in) throws IOException {
         byte[] lengthBytes = new byte[4];
-        int read = in.read(lengthBytes);
-        if (read < 4) {
+        if (in.read(lengthBytes) < 4) {
             throw new IOException("Failed to read message length");
         }
-        int length = ((lengthBytes[0] & 0xFF) << 24) |
-                ((lengthBytes[1] & 0xFF) << 16) |
-                ((lengthBytes[2] & 0xFF) << 8) |
-                (lengthBytes[3] & 0xFF);
+        ByteBuffer buffer = ByteBuffer.wrap(lengthBytes);
+        int length = buffer.getInt();
 
         byte[] data = new byte[length];
         int offset = 0;

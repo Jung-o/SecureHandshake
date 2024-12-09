@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
@@ -78,11 +79,11 @@ public class SHPClient {
         }
     }
 
-    public static void sendMessage(OutputStream out, byte[] data) throws IOException {
-        out.write((data.length >>> 24) & 0xFF);
-        out.write((data.length >>> 16) & 0xFF);
-        out.write((data.length >>> 8) & 0xFF);
-        out.write(data.length & 0xFF);
+    public static void sendMessage(OutputStream out, byte[] data) throws Exception {
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.putInt(data.length);
+        byte[] lengthBytes = buffer.array();
+        out.write(lengthBytes);
         out.write(data);
         out.flush();
     }
@@ -92,10 +93,8 @@ public class SHPClient {
         if (in.read(lengthBytes) < 4) {
             throw new Exception("Failed to read message length");
         }
-        int length = ((lengthBytes[0] & 0xFF) << 24) |
-                ((lengthBytes[1] & 0xFF) << 16) |
-                ((lengthBytes[2] & 0xFF) << 8) |
-                (lengthBytes[3] & 0xFF);
+        ByteBuffer buffer = ByteBuffer.wrap(lengthBytes);
+        int length = buffer.getInt();
 
         byte[] data = new byte[length];
         int offset = 0;
