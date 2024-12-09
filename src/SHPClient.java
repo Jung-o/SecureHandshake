@@ -1,6 +1,7 @@
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.stream.Collectors;
@@ -54,6 +55,24 @@ public class SHPClient {
                     .map(Base64.getEncoder()::encodeToString)
                     .collect(Collectors.joining(", ")));
 
+
+            byte[] nonce4 = generateNonce();
+            int counter=2048;
+            ECCKeyInfo eccKeyInfo= ECCKeyInfo.readKeyFromFile(clientKeyPairFile);
+
+            //data to send (later probably from program args)
+            String hashedPassword="XohImNooBHFR0OVvjcYpJ3NgPQ1qq73WKhHvch0VQtg=";
+            byte[] salt=Base64.getDecoder().decode("KgplqWYHvK/7ebSKnG2FWg==");
+            String request = "movie";
+            int udpPort=1234;
+
+            SHPMessageType3 msg3 = new SHPMessageType3(hashedPassword, salt,counter, request, userId, nonce3, nonce4, udpPort, eccKeyInfo);
+            byte[] m3Data = msg3.toBytes(knownProtocolVersion, knownRelease);
+            sendMessage(output, m3Data);
+            System.out.println("Sent msg3:" + msg3);
+
+            Thread.sleep(4000); //placeholder before implementing msg4 (wait 4s until server finish execution for msg3)
+
             // Additional message exchanges...
         }
     }
@@ -85,5 +104,11 @@ public class SHPClient {
             offset += r;
         }
         return data;
+    }
+
+    private byte[] generateNonce() {
+        byte[] nonce = new byte[16]; // 128-bit nonce
+        new SecureRandom().nextBytes(nonce);
+        return nonce;
     }
 }

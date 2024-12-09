@@ -80,8 +80,23 @@ public class SHPServer {
                 .map(Base64.getEncoder()::encodeToString)
                 .collect(Collectors.joining(", ")));
 
-        // Additional message exchanges...
+        byte[] msgData3 = receiveMessage(input);
+        UserRecord userData = userDatabase.get(userId);
+        int counter=2048;
+        byte[] userPublicKey = userDatabase.get(userId).getClientPublicKeyBytes();
+        ECCKeyInfo eccKeyInfo= new ECCKeyInfo(userPublicKey);
 
+        SHPMessageType3 msg3 = new SHPMessageType3(userData.getPasswordHash(), userData.getSalt(), counter, eccKeyInfo);
+        msg3.fromBytes(msgData3);
+        if (msg3.getProtocolVersion() != knownProtocolVersion || msg3.getRelease() != knownRelease) {
+            System.out.println("Protocol version or release mismatch on received message 1!");
+            socket.close();
+            return;
+        }
+
+        System.out.println("Received msg3: " + msg3);
+
+        // Additional message exchanges...
         System.out.println("Session complete.");
         socket.close();
     }
@@ -102,7 +117,7 @@ public class SHPServer {
             }
             
             String userId = parts[0].trim();
-            byte[] passwordHash = Base64.getDecoder().decode(parts[1].trim());
+            String passwordHash = parts[1].trim();
             byte[] salt = Base64.getDecoder().decode(parts[2].trim());
             byte[] kpubClient = Base64.getDecoder().decode(parts[3].trim());
 
@@ -120,9 +135,25 @@ public class SHPServer {
 
     private static class UserRecord {
         String userId;
-        byte[] passwordHash;       // H(password) as a byte array
+        String passwordHash;       // H(password) as a byte array
         byte[] salt;               // salt as a byte array
         byte[] clientPublicKeyBytes; // client's ECC public key as byte array
+
+        public byte[] getClientPublicKeyBytes() {
+            return clientPublicKeyBytes;
+        }
+
+        public String getUserId() {
+            return userId;
+        }
+
+        public String getPasswordHash() {
+            return passwordHash;
+        }
+
+        public byte[] getSalt() {
+            return salt;
+        }
     }
 
     private byte[] generateNonce() {
@@ -142,7 +173,8 @@ public class SHPServer {
 
     public static byte[] receiveMessage(InputStream in) throws IOException {
         byte[] lengthBytes = new byte[4];
-        if (in.read(lengthBytes) < 4) {
+        int read = in.read(lengthBytes);
+        if (read < 4) {
             throw new IOException("Failed to read message length");
         }
         int length = ((lengthBytes[0] & 0xFF) << 24) |
