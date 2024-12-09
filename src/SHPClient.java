@@ -2,7 +2,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
@@ -79,19 +78,11 @@ public class SHPClient {
         }
     }
 
-    public static void sendddMessage(OutputStream out, byte[] data) throws IOException {
+    public static void sendMessage(OutputStream out, byte[] data) throws IOException {
         out.write((data.length >>> 24) & 0xFF);
         out.write((data.length >>> 16) & 0xFF);
         out.write((data.length >>> 8) & 0xFF);
         out.write(data.length & 0xFF);
-        out.write(data);
-        out.flush();
-    }
-    public static void sendMessage(OutputStream out, byte[] data) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(4);
-        buffer.putInt(data.length);
-        byte[] lengthBytes = buffer.array();
-        out.write(lengthBytes);
         out.write(data);
         out.flush();
     }

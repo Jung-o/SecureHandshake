@@ -17,6 +17,7 @@ public class SHPMessageType3 extends SHPMessage {
     private ECCKeyInfo eccKeyInfo;
     private String request;
     private String userId;
+    private byte[] nonce3;
     private byte[] incrementedNonce3;
     private byte[] nonce4;
     private int udpPort;
@@ -40,7 +41,7 @@ public class SHPMessageType3 extends SHPMessage {
         this();
         this.userId = userID;
         this.request = request;
-        this.incrementedNonce3 = incrementNonce(nonce3);
+        this.nonce3 = nonce3;
         this.nonce4 = nonce4;
         this.udpPort = udpPort;
         this.salt = salt;
@@ -57,12 +58,13 @@ public class SHPMessageType3 extends SHPMessage {
     }
 
     // Server side constructor
-    public SHPMessageType3(String hashedPassword, byte[] salt, int counter, ECCKeyInfo eccKeyInfo){
+    public SHPMessageType3(String hashedPassword, byte[] salt, int counter, ECCKeyInfo eccKeyInfo, byte[] nonce3){
         this();
         this.hashedPassword = hashedPassword;
         this.salt = salt;
         this.counter = counter;
         this.eccKeyInfo = eccKeyInfo;
+        this.nonce3 = nonce3;
     }
 
     private byte[] serializePlaintext() throws Exception {
@@ -81,6 +83,7 @@ public class SHPMessageType3 extends SHPMessage {
         baos.write(userBytes);
 
         // nonce3+1 (16 bytes)
+        incrementedNonce3 = incrementNonce(nonce3);
         baos.write(incrementedNonce3);
 
         // nonce4 (16 bytes)
@@ -205,7 +208,6 @@ public class SHPMessageType3 extends SHPMessage {
 
         this.decryptedData = passwordBasedDecryption(encryptedData);
         boolean signatureVerified = verifySignature();
-
         if (!signatureVerified){
             return false;
         }
@@ -223,6 +225,11 @@ public class SHPMessageType3 extends SHPMessage {
         verifier.initVerify(eccKeyInfo.getPublicKey());
         verifier.update(decryptedData);
         return verifier.verify(signature);
+    }
+
+    public boolean verifyNonce3() {
+        byte[] incrementedOriginalNonce3 = incrementNonce(nonce3);
+        return Arrays.equals(incrementedOriginalNonce3, incrementedNonce3);
     }
 
     public void parseDecryptedData() {
@@ -270,6 +277,8 @@ public class SHPMessageType3 extends SHPMessage {
 
     public String getUserID() { return userId; }
     public String getRequestField() { return request; }
+    public byte[] getNonce3() { return nonce3; }
+    public byte[] getDecryptedData() { return decryptedData; }
     public byte[] getIncrementedNonce3() { return incrementedNonce3; }
     public byte[] getNonce4() { return nonce4; }
     public int getUdpPort() { return udpPort; }

@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -86,7 +87,7 @@ public class SHPServer {
         byte[] userPublicKey = userDatabase.get(userId).getClientPublicKeyBytes();
         ECCKeyInfo eccKeyInfo= new ECCKeyInfo(userPublicKey);
 
-        SHPMessageType3 msg3 = new SHPMessageType3(userData.getPasswordHash(), userData.getSalt(), counter, eccKeyInfo);
+        SHPMessageType3 msg3 = new SHPMessageType3(userData.getPasswordHash(), userData.getSalt(), counter, eccKeyInfo, nonce3);
         msg3.fromBytes(msgData3);
         if (msg3.getProtocolVersion() != knownProtocolVersion || msg3.getRelease() != knownRelease) {
             System.out.println("Protocol version or release mismatch on received message 1!");
@@ -99,12 +100,27 @@ public class SHPServer {
             return;
         }
         msg3.parseDecryptedData();
+        if (!msg3.verifyNonce3()){
+            System.out.println("Nonce 3 has been tampered with between messages 2 and 3!");
+            socket.close();
+            return;
+        }
 
         System.out.println("Received msg3: " + msg3);
 
         // Additional message exchanges...
         System.out.println("Session complete.");
         socket.close();
+    }
+
+    private byte[] incrementNonce(byte[] nonce) {
+        ByteBuffer buffer = ByteBuffer.wrap(nonce);
+        buffer.position(nonce.length - 4);
+        int lastPart = buffer.getInt();
+        lastPart += 1;
+        buffer.position(nonce.length - 4);
+        buffer.putInt(lastPart);
+        return buffer.array();
     }
 
     private Map<String, UserRecord> loadUserDatabase(String fileName) throws Exception {
