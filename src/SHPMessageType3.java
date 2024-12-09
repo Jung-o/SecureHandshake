@@ -262,12 +262,8 @@ public class SHPMessageType3 extends SHPMessage {
     public String toString() {
         return "SHPMessageType3 {" +
                 "hashedPassword='" + hashedPassword + '\'' +
-                ", salt='" + new String(salt) + '\'' +
-                ", counter=" + counter +
                 ", request='" + request + '\'' +
                 ", userID='" + userId + '\'' +
-                ", incrementedNonce3='" + Arrays.toString(incrementedNonce3) + '\'' +
-                ", nonce4='" + Arrays.toString(nonce4) + '\'' +
                 ", udpPort=" + udpPort +
                 '}';
     }
