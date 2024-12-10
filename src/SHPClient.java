@@ -80,7 +80,7 @@ public class SHPClient {
             SHPMessageType4 msg4 = new SHPMessageType4(hashedPassword, eccClientKeyInfo, serverPublicKey, nonce4, clientConfigFileName);
             msg4.fromBytes(m4Data);
             if (msg4.getProtocolVersion() != knownProtocolVersion || msg4.getRelease() != knownRelease) {
-                System.out.println("Protocol version or release mismatch on received message 1!");
+                System.out.println("Protocol version or release mismatch on received message 4!");
                 socket.close();
                 return;
             }
@@ -95,8 +95,13 @@ public class SHPClient {
                 socket.close();
                 return;
             }
-            ;
-            System.out.println("Received message msg4" + msg4);
+
+            System.out.println("Received msg4: " + msg4);
+            byte[] nonce5 = msg4.getNonce5();
+            SHPMessageType5 msg5 = new SHPMessageType5(nonce5, clientConfigFileName);
+            byte[] m5Data = msg5.toBytes(knownProtocolVersion, knownRelease);
+            sendMessage(output, m5Data);
+            System.out.println("Sent msg5: " + msg5);
 
             // Additional message exchanges...
         }

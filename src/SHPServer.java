@@ -90,7 +90,7 @@ public class SHPServer {
         SHPMessageType3 msg3 = new SHPMessageType3(userData.getPasswordHash(), userData.getSalt(), counter, eccClientKeyInfo, nonce3);
         msg3.fromBytes(msgData3);
         if (msg3.getProtocolVersion() != knownProtocolVersion || msg3.getRelease() != knownRelease) {
-            System.out.println("Protocol version or release mismatch on received message 1!");
+            System.out.println("Protocol version or release mismatch on received message 3!");
             socket.close();
             return;
         }
@@ -115,7 +115,30 @@ public class SHPServer {
 
         sendMessage(output, msg4.toBytes(knownProtocolVersion, knownRelease));
         System.out.println("Sent msg4: " + msg4);
-        // Additional message exchanges...
+
+
+        byte[] m5Data = receiveMessage(input);
+        SHPMessageType5 msg5 = new SHPMessageType5(nonce5, serverConfigFileName);
+        msg5.fromBytes(m5Data);
+        if (msg5.getProtocolVersion() != knownProtocolVersion || msg5.getRelease() != knownRelease) {
+            System.out.println("Protocol version or release mismatch on received message 5!");
+            socket.close();
+            return;
+        }
+        if (!msg5.verifyAndDecrypt()){
+            System.out.println("Failed to verify message HMAC or Signature, discarding message!");
+            socket.close();
+            return;
+        }
+
+        if (!msg5.verifyNonce5()){
+            System.out.println("Nonce 5 has been tampered with between messages 4 and 5!");
+            socket.close();
+            return;
+        }
+        System.out.println("Received msg5: " + msg5);
+
+
         System.out.println("Session complete.");
         socket.close();
     }

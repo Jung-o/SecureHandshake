@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.util.Arrays;
+import java.util.Base64;
 
 public class SHPMessageType4 extends SHPMessage {
     private String hashedPassword;
@@ -273,6 +274,8 @@ public class SHPMessageType4 extends SHPMessage {
         return "SHPMessageType4 {" +
                 " request='" + request + '\'' +
                 ", userID='" + userId + '\'' +
+                ", nonce5='" + Base64.getEncoder().encodeToString(nonce5) + '\'' +
+                ", incrementedNonce4='" + Base64.getEncoder().encodeToString(incrementedNonce4) + '\'' +
                 '}';
     }
 
