@@ -31,18 +31,7 @@ public class SHPMessageType5 extends SHPMessage {
     }
 
     private void parseConfigFile(String configFilePath) throws IOException {
-        Map<String, String> configMap = new HashMap<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(configFilePath))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty()) continue;
-                String[] parts = line.split(":", 2);
-                if (parts.length == 2) {
-                    configMap.put(parts[0].trim(), parts[1].trim());
-                }
-            }
-        }
+        Map<String, String> configMap = getConfigMap(configFilePath);
 
         // Example fields:
         // CONFIDENTIALITY: AES/CBC/PKCS5Padding
@@ -59,6 +48,22 @@ public class SHPMessageType5 extends SHPMessage {
         } else {
             throw new IOException("Only HMAC integrity supported for now.");
         }
+    }
+
+    private static Map<String, String> getConfigMap(String configFilePath) throws IOException {
+        Map<String, String> configMap = new HashMap<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(configFilePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                String[] parts = line.split(":", 2);
+                if (parts.length == 2) {
+                    configMap.put(parts[0].trim(), parts[1].trim());
+                }
+            }
+        }
+        return configMap;
     }
 
     private static byte[] hexStringToByteArray(String s) {
