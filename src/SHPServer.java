@@ -85,9 +85,9 @@ public class SHPServer {
         UserRecord userData = userDatabase.get(userId);
         int counter=2048;
         byte[] userPublicKey = userDatabase.get(userId).getClientPublicKeyBytes();
-        ECCKeyInfo eccKeyInfo= new ECCKeyInfo(userPublicKey);
+        ECCKeyInfo eccClientKeyInfo= new ECCKeyInfo(userPublicKey);
 
-        SHPMessageType3 msg3 = new SHPMessageType3(userData.getPasswordHash(), userData.getSalt(), counter, eccKeyInfo, nonce3);
+        SHPMessageType3 msg3 = new SHPMessageType3(userData.getPasswordHash(), userData.getSalt(), counter, eccClientKeyInfo, nonce3);
         msg3.fromBytes(msgData3);
         if (msg3.getProtocolVersion() != knownProtocolVersion || msg3.getRelease() != knownRelease) {
             System.out.println("Protocol version or release mismatch on received message 1!");
@@ -108,6 +108,13 @@ public class SHPServer {
 
         System.out.println("Received msg3: " + msg3);
 
+        byte[] nonce5= generateNonce();
+        String serverConfigFileName= "configuration-server.txt";
+        ECCKeyInfo eccServerKeyInfo = ECCKeyInfo.readKeyFromFile(eccKeyPairFile);
+        SHPMessageType4 msg4 = new SHPMessageType4(userData.getPasswordHash(), msg3.getUserID(), msg3.getRequestField(),msg3.getNonce4(), nonce5, serverConfigFileName, eccServerKeyInfo, eccClientKeyInfo);
+
+        sendMessage(output, msg4.toBytes(knownProtocolVersion, knownRelease));
+        System.out.println("Sent msg4: " + msg4);
         // Additional message exchanges...
         System.out.println("Session complete.");
         socket.close();

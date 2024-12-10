@@ -3,6 +3,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
@@ -60,7 +61,7 @@ public class SHPClient {
 
             byte[] nonce4 = generateNonce();
             int counter=2048;
-            ECCKeyInfo eccKeyInfo= ECCKeyInfo.readKeyFromFile(clientKeyPairFile);
+            ECCKeyInfo eccClientKeyInfo= ECCKeyInfo.readKeyFromFile(clientKeyPairFile);
 
             //data to send (later probably from program args)
             String hashedPassword="XohImNooBHFR0OVvjcYpJ3NgPQ1qq73WKhHvch0VQtg=";
@@ -68,12 +69,34 @@ public class SHPClient {
             String request = "movie";
             int udpPort=1234;
 
-            SHPMessageType3 msg3 = new SHPMessageType3(userId, request, nonce3, nonce4, udpPort, salt, counter, hashedPassword, eccKeyInfo);
+            SHPMessageType3 msg3 = new SHPMessageType3(userId, request, nonce3, nonce4, udpPort, salt, counter, hashedPassword, eccClientKeyInfo);
             byte[] m3Data = msg3.toBytes(knownProtocolVersion, knownRelease);
             sendMessage(output, m3Data);
             System.out.println("Sent msg3:" + msg3);
 
-            Thread.sleep(4000); //placeholder before implementing msg4 (wait 4s until server finish execution for msg3)
+            PublicKey serverPublicKey= ECCKeyInfo.readKeyFromFile("ServerECCKeyPair.sec").getPublicKey();
+            String clientConfigFileName = "configuration-client.txt";
+            byte[] m4Data = receiveMessage(input);
+            SHPMessageType4 msg4 = new SHPMessageType4(hashedPassword, eccClientKeyInfo, serverPublicKey, nonce4, clientConfigFileName);
+            msg4.fromBytes(m4Data);
+            if (msg4.getProtocolVersion() != knownProtocolVersion || msg4.getRelease() != knownRelease) {
+                System.out.println("Protocol version or release mismatch on received message 1!");
+                socket.close();
+                return;
+            }
+            if (!msg4.verifyMessage()){
+                System.out.println("Failed to verify message HMAC or Signature, discarding message!");
+                socket.close();
+                return;
+            }
+            msg4.parseDecryptedData();
+            if (!msg4.verifyNonce4()){
+                System.out.println("Nonce 4 has been tampered with between messages 3 and 4!");
+                socket.close();
+                return;
+            }
+            ;
+            System.out.println("Received message msg4" + msg4);
 
             // Additional message exchanges...
         }

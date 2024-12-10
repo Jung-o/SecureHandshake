@@ -77,14 +77,14 @@ public class ECCKeyInfo {
     public static PrivateKey loadPrivateKeyFromString(String base64PrivateKey) throws Exception {
         byte[] decodedKey = Base64.getDecoder().decode(base64PrivateKey);
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(decodedKey);
-        KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
+        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
         return keyFactory.generatePrivate(keySpec);
     }
 
     private static PublicKey loadPublicKeyFromString(String base64PublicKey) throws Exception {
         byte[] decodedKey = Base64.getDecoder().decode(base64PublicKey);
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
-        KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
+        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
         return keyFactory.generatePublic(keySpec);
     }
 
