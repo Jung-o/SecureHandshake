@@ -6,6 +6,6 @@ public class TestClient {
         String cryptoConfig = "configuration-client-" + request + ".txt";
         SHPClient client = new SHPClient("localhost", 12345, "ClientECCKeyPair.sec",
                 userId, pwd, 1234, request, cryptoConfig);
-        client.connect();
+        client.client_shp_phase1();
     }
 }

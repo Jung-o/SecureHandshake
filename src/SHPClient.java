@@ -35,7 +35,7 @@ public class SHPClient {
         this.cryptoConfigFilename = cryptoConfigFilename;
     }
 
-    public void connect() throws Exception {
+    public void client_shp_phase1() throws Exception {
         try (Socket socket = new Socket(serverAddress, tcpPort)) {
             System.out.println("Connected to server.");
 

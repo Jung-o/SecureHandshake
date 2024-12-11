@@ -25,7 +25,7 @@ public class SHPServer {
         this.userDatabase = loadUserDatabase(userDbFile);
     }
 
-    public void start() throws Exception {
+    public void server_shp_phase1() throws Exception {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started on port " + port);
             while (true) {
