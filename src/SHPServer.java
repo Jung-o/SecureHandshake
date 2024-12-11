@@ -107,7 +107,7 @@ public class SHPServer {
 
         String request = msg3.getRequestField();
         int udpPort = msg3.getUdpPort();
-        System.out.println("Sent Message 3 with request: " + request + " on UDP port: " + udpPort + " and nonce3, nonce4");
+        System.out.println("Received Message 3 with request: " + request + " on UDP port: " + udpPort + ", nonce3 and nonce4");
 
         if (Objects.equals(request, "stream")){
             cryptoConfigFilename = "configuration-stream.txt";
@@ -118,10 +118,10 @@ public class SHPServer {
 
         byte[] nonce5= generateNonce();
         ECCKeyInfo eccServerKeyInfo = ECCKeyInfo.readKeyFromFile(eccKeyPairFile);
-        SHPMessageType4 msg4 = new SHPMessageType4(userData.getPasswordHash(), msg3.getUserID(), msg3.getRequestField(),msg3.getNonce4(), nonce5, cryptoConfigFilename, eccServerKeyInfo, eccClientKeyInfo);
+        SHPMessageType4 msg4 = new SHPMessageType4(userData.getPasswordHash(), msg3.getUserID(), request, msg3.getNonce4(), nonce5, cryptoConfigFilename, eccServerKeyInfo, eccClientKeyInfo);
 
         sendMessage(output, msg4.toBytes(knownProtocolVersion, knownRelease));
-        System.out.println("Sent msg4: " + msg4);
+        System.out.println("Sent Message 4 with request " + request + " confirmation, crypto config file: " + cryptoConfigFilename + ", nonce4 and nonce5.");
 
 
         byte[] m5Data = receiveMessage(input);
@@ -143,7 +143,7 @@ public class SHPServer {
             socket.close();
             return;
         }
-        System.out.println("Received msg5: " + msg5);
+        System.out.println("Received Message 5 nonce5, using previously transferred crypto config");
 
 
         System.out.println("Session complete.");

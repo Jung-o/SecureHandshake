@@ -78,7 +78,7 @@ public class SHPClient {
             SHPMessageType3 msg3 = new SHPMessageType3(userId, request, nonce3, nonce4, udpPort, salt, counter, hashedPassword, eccClientKeyInfo);
             byte[] m3Data = msg3.toBytes(knownProtocolVersion, knownRelease);
             sendMessage(output, m3Data);
-            System.out.println("Sent Message 3 with request: " + request + " on UDP port: " + udpPort + " and nonce3, nonce4");
+            System.out.println("Sent Message 3 with request: " + request + " on UDP port: " + udpPort + ", nonce3 and nonce4");
 
             PublicKey serverPublicKey= ECCKeyInfo.readKeyFromFile("ServerECCKeyPair.sec").getPublicKey();
             byte[] m4Data = receiveMessage(input);
@@ -101,14 +101,12 @@ public class SHPClient {
                 return;
             }
 
-            System.out.println("Received msg4: " + msg4);
+            System.out.println("Received Message 4 with request " + request + " confirmation, crypto config file: " + cryptoConfigFilename + ", nonce4 and nonce5.");
             byte[] nonce5 = msg4.getNonce5();
             SHPMessageType5 msg5 = new SHPMessageType5(nonce5, cryptoConfigFilename);
             byte[] m5Data = msg5.toBytes(knownProtocolVersion, knownRelease);
             sendMessage(output, m5Data);
-            System.out.println("Sent msg5: " + msg5);
-
-            // Additional message exchanges...
+            System.out.println("Sent Message 5 nonce5, using previously transferred crypto config");
         }
     }
 
