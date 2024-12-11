@@ -17,12 +17,14 @@ public class SHPServer {
     // Server's known (or chosen) protocol version and release
     private final byte knownProtocolVersion = 0x1;
     private final byte knownRelease = 0x1;
+    public String request;
 
-    public SHPServer(int port, String userDbFile, String eccKeyPairFile) throws Exception {
+    public SHPServer(int port, String userDbFile, String eccKeyPairFile, String cryptoConfigFilename) throws Exception {
         this.port = port;
         this.userDbFile = userDbFile;
         this.eccKeyPairFile = eccKeyPairFile;
         this.userDatabase = loadUserDatabase(userDbFile);
+        this.cryptoConfigFilename = cryptoConfigFilename;
     }
 
     public void server_shp_phase1() throws Exception {
@@ -105,16 +107,9 @@ public class SHPServer {
             return;
         }
 
-        String request = msg3.getRequestField();
+        request = msg3.getRequestField();
         int udpPort = msg3.getUdpPort();
         System.out.println("Received Message 3 with request: " + request + " on UDP port: " + udpPort + ", nonce3 and nonce4");
-
-        if (Objects.equals(request, "stream")){
-            cryptoConfigFilename = "configuration-stream.txt";
-        } else {
-            cryptoConfigFilename = "configuration-block.txt";
-        }
-
 
         byte[] nonce5= generateNonce();
         ECCKeyInfo eccServerKeyInfo = ECCKeyInfo.readKeyFromFile(eccKeyPairFile);
