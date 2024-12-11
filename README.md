@@ -27,6 +27,8 @@ project-root/
 │   └── TestServer.java           # Test class for the server
 ├── out/                          # Compiled class files (generated during execution)
 ├── TestImpl.sh                   # Bash script to compile and test the project
+├── testStreaming.sh              # Bash script to compile and test Streaming service using SHP
+├── WorkingTools/                 # Directory with the different test benches
 ├── userdatabase.txt              # User's database file according to the specification
 └── README.md                     # Project documentation
 ```
@@ -41,6 +43,12 @@ This project includes a Bash script to compile the source files and execute the 
     - Compiles all Java source files in the `src` directory.
     - Includes the Bouncy Castle library (`lib/bcprov-jdk18on-1.79.jar`) in the compilation process.
     - Starts the `TestServer` and then the `TestClient` to demonstrate the SHP handshake process.
+- 
+- **`testStreaming.sh`**:
+    - Uses the `WorkingTools/StreamingService` testbench.
+    - Compiles all Java source files in the `hjStreamServer` and `hjUDPproxy` directories.
+    - Includes the Bouncy Castle library (`lib/bcprov-jdk18on-1.79.jar`) in the compilation process.
+    - Starts the `hjUDPProxy` and then the `hjStreamServer` to demonstrate the SHP handshake process on a streaming application.
 
 ### How to Run the Tests
 

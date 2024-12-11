@@ -1,0 +1,23 @@
+Changes made to the original application:
+
+hjStreamServer:
+-------------------------------
+- Created new variable for the config and loaded it from the file (using the DSTPConfig class)
+- Created new variable for the DSTP Socket from the original MulticastSocket (or DatagramSocket for unicast)
+- Changed the sockets that sent the messages from the MulticastOne (DatagramOne) to the DSTP one.
+
+hjUDproxy:
+-------------------------------
+- Created new variable for the config and loaded it from the file (using the DSTPConfig class)
+- Created new variable for the DSTP Socket from the original MulticastSocket(or DatagramSocket for unicast)
+- Changed the sockets that received the messages from the MulticastOne (DatagramOne) to the DSTP one.
+
+Syntax (command line)
+
+Stream Server:
+--------------------------------
+java hjStreamServer
+
+UDP Proxy:
+-----------------------------------
+java hjUDPproxy <SHPusername> <SHPpassword> <incoming-ip-address> <SHPtcpPort> <requestedMovie> <udp-port> <outgoing-ip-address>:<udp-port>
