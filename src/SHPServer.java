@@ -60,7 +60,7 @@ public class SHPServer {
         }
 
         String userId = msg1.getUserID();
-        System.out.println("Received userID: " + userId);
+        System.out.println("Received Message 1 with User ID : " + userId);
 
         if (!userDatabase.containsKey(userId)) {
             System.out.println("User not found.");
@@ -76,9 +76,7 @@ public class SHPServer {
         SHPMessageType2 msg2 = new SHPMessageType2(nonce1, nonce2, nonce3);
         sendMessage(output, msg2.toBytes(knownProtocolVersion, knownRelease));
 
-        System.out.println("Sent Nonces: " + Stream.of(nonce1, nonce2, nonce3)
-                .map(Base64.getEncoder()::encodeToString)
-                .collect(Collectors.joining(", ")));
+        System.out.println("Sent Message 2 with nonce1, nonce2, nonce3");
 
         Thread.sleep(500);
 
@@ -107,9 +105,11 @@ public class SHPServer {
             return;
         }
 
-        System.out.println("Received msg3: " + msg3);
+        String request = msg3.getRequestField();
+        int udpPort = msg3.getUdpPort();
+        System.out.println("Sent Message 3 with request: " + request + " on UDP port: " + udpPort + " and nonce3, nonce4");
 
-        if (Objects.equals(msg3.getRequestField(), "stream")){
+        if (Objects.equals(request, "stream")){
             cryptoConfigFilename = "configuration-stream.txt";
         } else {
             cryptoConfigFilename = "configuration-block.txt";

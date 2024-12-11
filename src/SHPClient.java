@@ -48,7 +48,7 @@ public class SHPClient {
             SHPMessageType1 msg1 = new SHPMessageType1(userId);
             byte[] m1Data = msg1.toBytes(knownProtocolVersion, knownRelease);
             sendMessage(output, m1Data);
-            System.out.println("Sent userID: " + userId);
+            System.out.println("Sent Message 1 with User ID : " + userId);
 
             // Receive MessageType2 (nonces)
             byte[] m2Data = receiveMessage(input);
@@ -65,9 +65,7 @@ public class SHPClient {
             byte[] nonce2 = msg2.getNonce2();
             byte[] nonce3 = msg2.getNonce3();
 
-            System.out.println("Received Nonces: " + Arrays.asList(nonce1, nonce2, nonce3).stream()
-                    .map(Base64.getEncoder()::encodeToString)
-                    .collect(Collectors.joining(", ")));
+            System.out.println("Received Message 2 with nonce1, nonce2, nonce3");
 
 
             byte[] nonce4 = generateNonce();
@@ -80,7 +78,7 @@ public class SHPClient {
             SHPMessageType3 msg3 = new SHPMessageType3(userId, request, nonce3, nonce4, udpPort, salt, counter, hashedPassword, eccClientKeyInfo);
             byte[] m3Data = msg3.toBytes(knownProtocolVersion, knownRelease);
             sendMessage(output, m3Data);
-            System.out.println("Sent msg3:" + msg3);
+            System.out.println("Sent Message 3 with request: " + request + " on UDP port: " + udpPort + " and nonce3, nonce4");
 
             PublicKey serverPublicKey= ECCKeyInfo.readKeyFromFile("ServerECCKeyPair.sec").getPublicKey();
             byte[] m4Data = receiveMessage(input);
