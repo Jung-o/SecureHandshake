@@ -18,6 +18,7 @@ public class SHPMessageType5 extends SHPMessage {
     // Fields parsed from the config
     private String cipherTransformation; // e.g. "AES/CBC/PKCS5Padding"
     private byte[] symmetricKey;
+    private boolean useIv;
     private byte[] iv;
     private byte[] macKey;
 
@@ -40,6 +41,8 @@ public class SHPMessageType5 extends SHPMessage {
         this.symmetricKey = hexStringToByteArray(configMap.get("SYMMETRIC_KEY"));
         // IV: hex string
         this.iv = hexStringToByteArray(configMap.get("IV"));
+
+        useIv = !Objects.equals(configMap.get("IV_SIZE"), "NULL");
 
         // MACKEY: hex string
         String integrity = configMap.get("INTEGRITY");
@@ -107,20 +110,26 @@ public class SHPMessageType5 extends SHPMessage {
     }
 
     private byte[] encrypt(byte[] plaintext) throws Exception {
-        SecretKeySpec keySpec = new SecretKeySpec(symmetricKey, "AES");
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
-
+        SecretKeySpec keySpec = new SecretKeySpec(symmetricKey, cipherTransformation);
         Cipher cipher = Cipher.getInstance(cipherTransformation);
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
+        if (useIv){
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
+        } else {
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+        }
         return cipher.doFinal(plaintext);
     }
 
     private byte[] decrypt(byte[] ciphertext) throws Exception {
-        SecretKeySpec keySpec = new SecretKeySpec(symmetricKey, "AES");
-        IvParameterSpec ivSpec = new IvParameterSpec(iv);
-
+        SecretKeySpec keySpec = new SecretKeySpec(symmetricKey, cipherTransformation);
         Cipher cipher = Cipher.getInstance(cipherTransformation);
-        cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
+        if (useIv){
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
+        } else {
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+        }
         return cipher.doFinal(ciphertext);
     }
 
