@@ -6,9 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.stream.Collectors;
 
 public class SHPClient {
     private String serverAddress;

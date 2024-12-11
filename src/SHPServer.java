@@ -1,11 +1,11 @@
 import java.io.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class SHPServer {
     private int port;
@@ -18,17 +18,20 @@ public class SHPServer {
     private final byte knownProtocolVersion = 0x1;
     private final byte knownRelease = 0x1;
     public String request;
+    private final String hostname;
 
-    public SHPServer(int port, String userDbFile, String eccKeyPairFile, String cryptoConfigFilename) throws Exception {
+    public SHPServer(String hostname, int port, String userDbFile, String eccKeyPairFile, String cryptoConfigFilename) throws Exception {
         this.port = port;
         this.userDbFile = userDbFile;
         this.eccKeyPairFile = eccKeyPairFile;
         this.userDatabase = loadUserDatabase(userDbFile);
         this.cryptoConfigFilename = cryptoConfigFilename;
+        this.hostname = hostname;
     }
 
     public void server_shp_phase1() throws Exception {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
+        InetAddress addr = new InetSocketAddress(hostname, port).getAddress();
+        try (ServerSocket serverSocket = new ServerSocket(port, 10, addr)) {
             System.out.println("Server started on port " + port);
             while (true) {
                 Socket clientSocket = serverSocket.accept();
