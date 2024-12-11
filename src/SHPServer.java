@@ -12,6 +12,7 @@ public class SHPServer {
     private String userDbFile;
     private String eccKeyPairFile;
     private Map<String, UserRecord> userDatabase;
+    private String cryptoConfigFilename;
 
     // Server's known (or chosen) protocol version and release
     private final byte knownProtocolVersion = 0x1;
@@ -108,17 +109,23 @@ public class SHPServer {
 
         System.out.println("Received msg3: " + msg3);
 
+        if (Objects.equals(msg3.getRequestField(), "stream")){
+            cryptoConfigFilename = "configuration-stream.txt";
+        } else {
+            cryptoConfigFilename = "configuration-block.txt";
+        }
+
+
         byte[] nonce5= generateNonce();
-        String serverConfigFileName= "configuration-server.txt";
         ECCKeyInfo eccServerKeyInfo = ECCKeyInfo.readKeyFromFile(eccKeyPairFile);
-        SHPMessageType4 msg4 = new SHPMessageType4(userData.getPasswordHash(), msg3.getUserID(), msg3.getRequestField(),msg3.getNonce4(), nonce5, serverConfigFileName, eccServerKeyInfo, eccClientKeyInfo);
+        SHPMessageType4 msg4 = new SHPMessageType4(userData.getPasswordHash(), msg3.getUserID(), msg3.getRequestField(),msg3.getNonce4(), nonce5, cryptoConfigFilename, eccServerKeyInfo, eccClientKeyInfo);
 
         sendMessage(output, msg4.toBytes(knownProtocolVersion, knownRelease));
         System.out.println("Sent msg4: " + msg4);
 
 
         byte[] m5Data = receiveMessage(input);
-        SHPMessageType5 msg5 = new SHPMessageType5(nonce5, serverConfigFileName);
+        SHPMessageType5 msg5 = new SHPMessageType5(nonce5, cryptoConfigFilename);
         msg5.fromBytes(m5Data);
         if (msg5.getProtocolVersion() != knownProtocolVersion || msg5.getRelease() != knownRelease) {
             System.out.println("Protocol version or release mismatch on received message 5!");

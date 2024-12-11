@@ -1,8 +1,9 @@
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -11,23 +12,31 @@ import java.util.stream.Collectors;
 
 public class SHPClient {
     private String serverAddress;
-    private int port;
+    private int tcpPort;
     private String clientKeyPairFile;
     private String userId;
+    private String plaintextPwd;
+    private int udpPort;
+    private String request;
+    private String cryptoConfigFilename;
 
     // Client's known protocol version and release
     private final byte knownProtocolVersion = 0x1;
     private final byte knownRelease = 0x1;
 
-    public SHPClient(String serverAddress, int port, String clientKeyPairFile, String userId) {
+    public SHPClient(String serverAddress, int tcpPort, String clientKeyPairFile, String userId, String plaintextPwd, int udpPort, String request, String cryptoConfigFilename) {
         this.serverAddress = serverAddress;
-        this.port = port;
+        this.tcpPort = tcpPort;
         this.clientKeyPairFile = clientKeyPairFile;
         this.userId = userId;
+        this.plaintextPwd = plaintextPwd;
+        this.udpPort = udpPort;
+        this.request = request;
+        this.cryptoConfigFilename = cryptoConfigFilename;
     }
 
     public void connect() throws Exception {
-        try (Socket socket = new Socket(serverAddress, port)) {
+        try (Socket socket = new Socket(serverAddress, tcpPort)) {
             System.out.println("Connected to server.");
 
             InputStream input = socket.getInputStream();
@@ -64,10 +73,8 @@ public class SHPClient {
             ECCKeyInfo eccClientKeyInfo= ECCKeyInfo.readKeyFromFile(clientKeyPairFile);
 
             //data to send (later probably from program args)
-            String hashedPassword="XohImNooBHFR0OVvjcYpJ3NgPQ1qq73WKhHvch0VQtg=";
+            String hashedPassword=hashAndEncode(plaintextPwd);
             byte[] salt=Base64.getDecoder().decode("KgplqWYHvK/7ebSKnG2FWg==");
-            String request = "movie";
-            int udpPort=1234;
 
             SHPMessageType3 msg3 = new SHPMessageType3(userId, request, nonce3, nonce4, udpPort, salt, counter, hashedPassword, eccClientKeyInfo);
             byte[] m3Data = msg3.toBytes(knownProtocolVersion, knownRelease);
@@ -75,9 +82,8 @@ public class SHPClient {
             System.out.println("Sent msg3:" + msg3);
 
             PublicKey serverPublicKey= ECCKeyInfo.readKeyFromFile("ServerECCKeyPair.sec").getPublicKey();
-            String clientConfigFileName = "configuration-client.txt";
             byte[] m4Data = receiveMessage(input);
-            SHPMessageType4 msg4 = new SHPMessageType4(hashedPassword, eccClientKeyInfo, serverPublicKey, nonce4, clientConfigFileName);
+            SHPMessageType4 msg4 = new SHPMessageType4(hashedPassword, eccClientKeyInfo, serverPublicKey, nonce4, cryptoConfigFilename);
             msg4.fromBytes(m4Data);
             if (msg4.getProtocolVersion() != knownProtocolVersion || msg4.getRelease() != knownRelease) {
                 System.out.println("Protocol version or release mismatch on received message 4!");
@@ -98,7 +104,7 @@ public class SHPClient {
 
             System.out.println("Received msg4: " + msg4);
             byte[] nonce5 = msg4.getNonce5();
-            SHPMessageType5 msg5 = new SHPMessageType5(nonce5, clientConfigFileName);
+            SHPMessageType5 msg5 = new SHPMessageType5(nonce5, cryptoConfigFilename);
             byte[] m5Data = msg5.toBytes(knownProtocolVersion, knownRelease);
             sendMessage(output, m5Data);
             System.out.println("Sent msg5: " + msg5);
@@ -138,5 +144,11 @@ public class SHPClient {
         byte[] nonce = new byte[16]; // 128-bit nonce
         new SecureRandom().nextBytes(nonce);
         return nonce;
+    }
+
+    public static String hashAndEncode(String plaintext) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(plaintext.getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(hash);
     }
 }
