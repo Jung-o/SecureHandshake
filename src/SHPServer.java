@@ -20,6 +20,7 @@ public class SHPServer {
     public String request;
     private final String hostname;
     public int udpPort;
+    private InetSocketAddress socketAddress;
 
     public SHPServer(String hostname, int port, String userDbFile, String eccKeyPairFile, String cryptoConfigFilename) throws Exception {
         this.port = port;
@@ -28,10 +29,11 @@ public class SHPServer {
         this.userDatabase = loadUserDatabase(userDbFile);
         this.cryptoConfigFilename = cryptoConfigFilename;
         this.hostname = hostname;
+        socketAddress = new InetSocketAddress(hostname, port);
     }
 
     public void server_shp_phase1() throws Exception {
-        InetAddress addr = new InetSocketAddress(hostname, port).getAddress();
+        InetAddress addr = socketAddress.getAddress();
         try (ServerSocket serverSocket = new ServerSocket(port, 50, addr)) {
             System.out.println("Server started on port " + port);
             Socket clientSocket = serverSocket.accept();
