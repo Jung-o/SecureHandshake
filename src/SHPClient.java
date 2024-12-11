@@ -19,12 +19,13 @@ public class SHPClient {
     private int udpPort;
     private String request;
     private String cryptoConfigFilename;
+    private byte[] salt;
 
     // Client's known protocol version and release
     private final byte knownProtocolVersion = 0x1;
     private final byte knownRelease = 0x1;
 
-    public SHPClient(String serverAddress, int tcpPort, String clientKeyPairFile, String userId, String plaintextPwd, int udpPort, String request, String cryptoConfigFilename) {
+    public SHPClient(String serverAddress, int tcpPort, String clientKeyPairFile, String userId, String plaintextPwd, String base64Salt, int udpPort, String request, String cryptoConfigFilename) {
         this.serverAddress = serverAddress;
         this.tcpPort = tcpPort;
         this.clientKeyPairFile = clientKeyPairFile;
@@ -33,6 +34,7 @@ public class SHPClient {
         this.udpPort = udpPort;
         this.request = request;
         this.cryptoConfigFilename = cryptoConfigFilename;
+        this.salt = Base64.getDecoder().decode(base64Salt);;
     }
 
     public void client_shp_phase1() throws Exception {
@@ -74,7 +76,6 @@ public class SHPClient {
 
             //data to send (later probably from program args)
             String hashedPassword=hashAndEncode(plaintextPwd);
-            byte[] salt=Base64.getDecoder().decode("KgplqWYHvK/7ebSKnG2FWg==");
 
             SHPMessageType3 msg3 = new SHPMessageType3(userId, request, nonce3, nonce4, udpPort, salt, counter, hashedPassword, eccClientKeyInfo);
             byte[] m3Data = msg3.toBytes(knownProtocolVersion, knownRelease);
