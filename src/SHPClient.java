@@ -18,12 +18,13 @@ public class SHPClient {
     private String request;
     private String cryptoConfigFilename;
     private byte[] salt;
+    private String serverPubKeyFile;
 
     // Client's known protocol version and release
     private final byte knownProtocolVersion = 0x1;
     private final byte knownRelease = 0x1;
 
-    public SHPClient(String serverAddress, int tcpPort, String clientKeyPairFile, String userId, String plaintextPwd, String base64Salt, int udpPort, String request, String cryptoConfigFilename) {
+    public SHPClient(String serverAddress, int tcpPort, String clientKeyPairFile, String serverPubKeyFile, String userId, String plaintextPwd, String base64Salt, int udpPort, String request, String cryptoConfigFilename) {
         this.serverAddress = serverAddress;
         this.tcpPort = tcpPort;
         this.clientKeyPairFile = clientKeyPairFile;
@@ -32,7 +33,9 @@ public class SHPClient {
         this.udpPort = udpPort;
         this.request = request;
         this.cryptoConfigFilename = cryptoConfigFilename;
-        this.salt = Base64.getDecoder().decode(base64Salt);;
+        this.salt = Base64.getDecoder().decode(base64Salt);
+        this.serverPubKeyFile = serverPubKeyFile;
+        ;
     }
 
     public void client_shp_phase1() throws Exception {
@@ -78,7 +81,7 @@ public class SHPClient {
             sendMessage(output, m3Data);
             System.out.println("Sent Message 3 with request: " + request + " on UDP port: " + udpPort + ", nonce3 and nonce4");
 
-            PublicKey serverPublicKey= ECCKeyInfo.readKeyFromFile("ServerECCKeyPair.sec").getPublicKey();
+            PublicKey serverPublicKey= ECCKeyInfo.readKeyFromFile(serverPubKeyFile).getPublicKey();
             byte[] m4Data = receiveMessage(input);
             SHPMessageType4 msg4 = new SHPMessageType4(hashedPassword, eccClientKeyInfo, serverPublicKey, nonce4, cryptoConfigFilename);
             msg4.fromBytes(m4Data);

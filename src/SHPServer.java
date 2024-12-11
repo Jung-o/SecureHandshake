@@ -19,6 +19,7 @@ public class SHPServer {
     private final byte knownRelease = 0x1;
     public String request;
     private final String hostname;
+    public int udpPort;
 
     public SHPServer(String hostname, int port, String userDbFile, String eccKeyPairFile, String cryptoConfigFilename) throws Exception {
         this.port = port;
@@ -31,18 +32,14 @@ public class SHPServer {
 
     public void server_shp_phase1() throws Exception {
         InetAddress addr = new InetSocketAddress(hostname, port).getAddress();
-        try (ServerSocket serverSocket = new ServerSocket(port, 10, addr)) {
+        try (ServerSocket serverSocket = new ServerSocket(port, 50, addr)) {
             System.out.println("Server started on port " + port);
-            while (true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("Client connected.");
-                new Thread(() -> {
-                    try {
-                        handleClient(clientSocket);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }).start();
+            Socket clientSocket = serverSocket.accept();
+            System.out.println("Client connected.");
+            try {
+                handleClient(clientSocket);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
@@ -111,7 +108,7 @@ public class SHPServer {
         }
 
         request = msg3.getRequestField();
-        int udpPort = msg3.getUdpPort();
+        udpPort = msg3.getUdpPort();
         System.out.println("Received Message 3 with request: " + request + " on UDP port: " + udpPort + ", nonce3 and nonce4");
 
         byte[] nonce5= generateNonce();

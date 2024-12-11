@@ -6,7 +6,7 @@ public class TestClient {
         String request = "block";
         String cryptoConfig = "configuration-client-" + request + ".txt";
         SHPClient client = new SHPClient("127.0.0.1", 12345, "ClientECCKeyPair.sec",
-                userId, pwd, salt, 1234, request, cryptoConfig);
+                "ServerECCPubKey.sec", userId, pwd, salt, 1234, request, cryptoConfig);
         client.client_shp_phase1();
     }
 }
