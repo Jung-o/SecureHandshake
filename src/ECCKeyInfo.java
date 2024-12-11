@@ -61,6 +61,7 @@ public class ECCKeyInfo {
                 keyInfo.setCurve(line.split(":")[1].trim());
             } else if (line.startsWith("PrivateKey:")) {
                 String privateKeyBase64 = line.split(":")[1].trim();
+                if (privateKeyBase64.equals("null")) {continue;}
                 PrivateKey privateKey = loadPrivateKeyFromString(privateKeyBase64);
                 keyInfo.setPrivateKey(privateKey);
             } else if (line.startsWith("PublicKey:")) {
