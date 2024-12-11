@@ -28,6 +28,7 @@ project-root/
 ├── out/                          # Compiled class files (generated during execution)
 ├── TestImpl.sh                   # Bash script to compile and test the project
 ├── testStreaming.sh              # Bash script to compile and test Streaming service using SHP
+├── testTFTP.sh                   # Bash script to compile and test TFTP service using SHP
 ├── WorkingTools/                 # Directory with the different test benches
 ├── userdatabase.txt              # User's database file according to the specification
 └── README.md                     # Project documentation
@@ -49,6 +50,11 @@ This project includes a Bash script to compile the source files and execute the 
     - Compiles all Java source files in the `hjStreamServer` and `hjUDPproxy` directories.
     - Includes the Bouncy Castle library (`lib/bcprov-jdk18on-1.79.jar`) in the compilation process.
     - Starts the `hjUDPProxy` and then the `hjStreamServer` to demonstrate the SHP handshake process on a streaming application.
+- **`testTFTP.sh`**:
+    - Uses the `WorkingTools/TFTP` testbench.
+    - Compiles all Java source files in the `TFTPClient` and `TFTPServer` directories.
+    - Includes the Bouncy Castle library (`lib/bcprov-jdk18on-1.79.jar`) in the compilation process.
+    - Starts the `TFTPServer` and then the `TFTPClient` to demonstrate the SHP handshake process on file transfer application.
 
 ### How to Run the Tests
 
